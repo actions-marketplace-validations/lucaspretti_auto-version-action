@@ -94,8 +94,8 @@ if [ "$GITHUB_REF" = "$STAGING_REF" ]; then
   if [ -n "$INPUT_DEPLOYMENT_INFO" ]; then
     printf '%s\n' "$INPUT_DEPLOYMENT_INFO" >> release_notes.md
   else
-    printf '- **Status**: Release Candidate %s\n' "$RC_NUMBER" >> release_notes.md
-    printf '- **Not for production use**\n' >> release_notes.md
+    printf -- '- **Status**: Release Candidate %s\n' "$RC_NUMBER" >> release_notes.md
+    printf -- '- **Not for production use**\n' >> release_notes.md
   fi
   printf '\n%s: %s\n' "$FULL_CHANGELOG_LABEL" "$FULL_CHANGELOG_URL" >> release_notes.md
 
@@ -185,10 +185,10 @@ if [ "$GITHUB_REF" = "$PRODUCTION_REF" ]; then
   fi
 
   printf '### Build Details\n\n' >> release_notes.md
-  printf '- **Docker Image**: `%s` ([view commit](%s/commit/%s))\n' "$COMMIT_SHA_SHORT" "$REPO_URL" "$GITHUB_SHA" >> release_notes.md
-  printf '- **Workflow Run**: [View logs](%s/actions/runs/%s)\n' "$REPO_URL" "$GITHUB_RUN_ID" >> release_notes.md
-  printf '- **Build Time**: %s\n' "$BUILD_TIME" >> release_notes.md
-  printf '- **Deployed By**: @%s\n\n' "$GITHUB_ACTOR" >> release_notes.md
+  printf -- '- **Docker Image**: `%s` ([view commit](%s/commit/%s))\n' "$COMMIT_SHA_SHORT" "$REPO_URL" "$GITHUB_SHA" >> release_notes.md
+  printf -- '- **Workflow Run**: [View logs](%s/actions/runs/%s)\n' "$REPO_URL" "$GITHUB_RUN_ID" >> release_notes.md
+  printf -- '- **Build Time**: %s\n' "$BUILD_TIME" >> release_notes.md
+  printf -- '- **Deployed By**: @%s\n\n' "$GITHUB_ACTOR" >> release_notes.md
   printf '%s\n\n' '---' >> release_notes.md
 
   if [ -n "$LAST_PROD_TAG" ]; then
