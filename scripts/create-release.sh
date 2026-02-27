@@ -14,8 +14,8 @@ categorize_commits() {
   local range="$1"
   local fmt="- %s ([%h]($REPO_URL/commit/%H))"
 
-  CHANGELOG=$(git log --pretty=format:"$fmt" $range)
-  TOTAL_COMMITS=$(git rev-list --count $range)
+  CHANGELOG=$(git log --pretty=format:"$fmt" $range | grep -v "\[skip ci\]" || echo "")
+  TOTAL_COMMITS=$(git log --oneline $range | grep -vc "\[skip ci\]" || echo "0")
   BREAKING=$(echo "$CHANGELOG" | grep -E "^- feat(\(.*\))?!:|BREAKING CHANGE" || echo "")
   FEATURES=$(echo "$CHANGELOG" | grep -E "^- feat(\(.*\))?:" | grep -v "!" || echo "")
   FIXES=$(echo "$CHANGELOG" | grep -E "^- fix(\(.*\))?:" || echo "")
