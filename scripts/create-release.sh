@@ -61,7 +61,7 @@ if [ "$GITHUB_REF" = "$STAGING_REF" ]; then
 
   # Determine commit range
   if [ "$RC_NUMBER" = "1" ]; then
-    LAST_TAG=$(git describe --tags --abbrev=0 --exclude "*-rc.*" 2>/dev/null || echo "")
+    LAST_TAG=$(git describe --tags --abbrev=0 --match "v[0-9]*.[0-9]*.[0-9]*" --exclude "*-rc.*" 2>/dev/null || echo "")
   else
     PREV_RC=$((RC_NUMBER - 1))
     LAST_TAG="v${BASE_VERSION}-rc.${PREV_RC}"
@@ -156,7 +156,7 @@ if [ "$GITHUB_REF" = "$PRODUCTION_REF" ]; then
   git push origin "v$VERSION"
 
   # Find last production tag (exclude RCs and current)
-  LAST_PROD_TAG=$(git describe --tags --abbrev=0 --exclude "*-rc.*" --exclude "v${VERSION}" HEAD^ 2>/dev/null || echo "")
+  LAST_PROD_TAG=$(git describe --tags --abbrev=0 --match "v[0-9]*.[0-9]*.[0-9]*" --exclude "*-rc.*" --exclude "v${VERSION}" HEAD^ 2>/dev/null || echo "")
 
   if [ -z "$LAST_PROD_TAG" ]; then
     RANGE="HEAD~10..HEAD"

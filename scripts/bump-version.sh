@@ -25,7 +25,7 @@ if [ "$GITHUB_REF" = "$PRODUCTION_REF" ]; then
   CURRENT_VERSION=$(node -pe "require('./$INPUT_VERSION_FILE').version")
 
   # Calculate expected version from commits
-  LAST_PROD_TAG=$(git describe --tags --abbrev=0 --exclude "*-rc.*" 2>/dev/null || echo "")
+  LAST_PROD_TAG=$(git describe --tags --abbrev=0 --match "v[0-9]*.[0-9]*.[0-9]*" --exclude "*-rc.*" 2>/dev/null || echo "")
   if [ -z "$LAST_PROD_TAG" ]; then
     LAST_PROD_VERSION="0.0.0"
   else
@@ -84,7 +84,7 @@ BASE_VERSION="$CURRENT_VERSION"
 
 # If subsequent RC, check if we need a higher bump
 if [ "$IS_SUBSEQUENT_RC" = "true" ]; then
-  LAST_PROD_TAG=$(git describe --tags --abbrev=0 --exclude "*-rc.*" 2>/dev/null || echo "")
+  LAST_PROD_TAG=$(git describe --tags --abbrev=0 --match "v[0-9]*.[0-9]*.[0-9]*" --exclude "*-rc.*" 2>/dev/null || echo "")
   if [ -n "$LAST_PROD_TAG" ]; then
     LAST_PROD_VERSION=$(echo "$LAST_PROD_TAG" | sed 's/^v//')
   else
@@ -122,7 +122,7 @@ fi
 
 # Perform version bump if needed (RC-1 or re-bump for higher priority)
 if [ "$IS_SUBSEQUENT_RC" = "false" ] || [ "$NEEDS_REBUMP" = "true" ]; then
-  LAST_PROD_TAG=$(git describe --tags --abbrev=0 --exclude "*-rc.*" 2>/dev/null || echo "")
+  LAST_PROD_TAG=$(git describe --tags --abbrev=0 --match "v[0-9]*.[0-9]*.[0-9]*" --exclude "*-rc.*" 2>/dev/null || echo "")
   if [ -z "$LAST_PROD_TAG" ]; then
     LAST_PROD_VERSION="0.0.0"
     echo "No previous production release found, starting from 0.0.0"

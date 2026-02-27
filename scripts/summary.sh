@@ -8,7 +8,7 @@ BRANCH="$GITHUB_REF_NAME"
 REPO_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
 
 # Get analyzed commits for summary
-LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+LAST_TAG=$(git describe --tags --abbrev=0 --match "v[0-9]*.[0-9]*.[0-9]*" HEAD^ 2>/dev/null || echo "")
 
 if [ -z "$LAST_TAG" ]; then
   COMMITS=$(git log --pretty=format:"- %s (%h)" HEAD~10..HEAD)

@@ -15,7 +15,7 @@ STAGING_REF="refs/heads/$INPUT_STAGING_BRANCH"
 # For staging: Check if RC tags exist for current version
 if [ "$GITHUB_REF" = "$STAGING_REF" ]; then
   EXISTING_RC_COUNT=$(git tag -l "v${CURRENT_VERSION}-rc.*" 2>/dev/null | wc -l | tr -d ' ')
-  LAST_PROD_TAG=$(git describe --tags --abbrev=0 --exclude "*-rc.*" 2>/dev/null || echo "")
+  LAST_PROD_TAG=$(git describe --tags --abbrev=0 --match "v[0-9]*.[0-9]*.[0-9]*" --exclude "*-rc.*" 2>/dev/null || echo "")
 
   if [ "$EXISTING_RC_COUNT" -gt 0 ]; then
     echo "RC tags already exist for v$CURRENT_VERSION (found $EXISTING_RC_COUNT RC(s))"
@@ -26,7 +26,7 @@ if [ "$GITHUB_REF" = "$STAGING_REF" ]; then
     echo "is_subsequent_rc=false" >> "$GITHUB_OUTPUT"
   fi
 else
-  LAST_PROD_TAG=$(git describe --tags --abbrev=0 --exclude "*-rc.*" 2>/dev/null || echo "")
+  LAST_PROD_TAG=$(git describe --tags --abbrev=0 --match "v[0-9]*.[0-9]*.[0-9]*" --exclude "*-rc.*" 2>/dev/null || echo "")
   echo "is_subsequent_rc=false" >> "$GITHUB_OUTPUT"
 fi
 
