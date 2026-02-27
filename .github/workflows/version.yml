@@ -27,3 +27,4 @@ jobs:
         with:
           version-file: package.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-api-url: ${{ github.api_url }}
