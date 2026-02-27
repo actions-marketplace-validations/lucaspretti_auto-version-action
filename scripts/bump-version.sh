@@ -62,6 +62,7 @@ if [ "$GITHUB_REF" = "$PRODUCTION_REF" ]; then
     # Commit version bump
     git add -A
     git commit -m "chore: bump version to $EXPECTED_VERSION [skip ci]"
+    git pull --rebase origin "$INPUT_PRODUCTION_BRANCH" || true
     git push origin "$INPUT_PRODUCTION_BRANCH"
 
     VERSION="$EXPECTED_VERSION"
@@ -158,6 +159,7 @@ if [ "$IS_SUBSEQUENT_RC" = "false" ] || [ "$NEEDS_REBUMP" = "true" ]; then
     # Commit version bump
     git add -A
     git commit -m "chore: bump version to $NEW_BASE_VERSION [skip ci]"
+    git pull --rebase origin "$INPUT_STAGING_BRANCH" || true
     git push origin "$INPUT_STAGING_BRANCH"
 
     BASE_VERSION="$NEW_BASE_VERSION"
