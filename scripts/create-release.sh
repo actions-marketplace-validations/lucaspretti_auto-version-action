@@ -90,7 +90,7 @@ if [ "$GITHUB_REF" = "$STAGING_REF" ]; then
 
   write_sections
 
-  printf '---\n\n### Deployment\n\n' >> release_notes.md
+  printf '%s\n\n### Deployment\n\n' '---' >> release_notes.md
   if [ -n "$INPUT_DEPLOYMENT_INFO" ]; then
     printf '%s\n' "$INPUT_DEPLOYMENT_INFO" >> release_notes.md
   else
@@ -178,7 +178,7 @@ if [ "$GITHUB_REF" = "$PRODUCTION_REF" ]; then
 
   write_sections
 
-  printf '---\n\n' >> release_notes.md
+  printf '%s\n\n' '---' >> release_notes.md
 
   if [ -n "$INPUT_DEPLOYMENT_INFO" ]; then
     printf '## Deployment Information\n\n%s\n\n' "$INPUT_DEPLOYMENT_INFO" >> release_notes.md
@@ -189,7 +189,7 @@ if [ "$GITHUB_REF" = "$PRODUCTION_REF" ]; then
   printf '- **Workflow Run**: [View logs](%s/actions/runs/%s)\n' "$REPO_URL" "$GITHUB_RUN_ID" >> release_notes.md
   printf '- **Build Time**: %s\n' "$BUILD_TIME" >> release_notes.md
   printf '- **Deployed By**: @%s\n\n' "$GITHUB_ACTOR" >> release_notes.md
-  printf '---\n\n' >> release_notes.md
+  printf '%s\n\n' '---' >> release_notes.md
 
   if [ -n "$LAST_PROD_TAG" ]; then
     printf '**Full Changelog**: %s/compare/%s...v%s\n' "$REPO_URL" "$LAST_PROD_TAG" "$VERSION" >> release_notes.md
