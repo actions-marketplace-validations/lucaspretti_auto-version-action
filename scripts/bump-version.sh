@@ -7,6 +7,9 @@ set -euo pipefail
 # For production: bumps only if version is outdated (direct push without staging).
 # Outputs: version, rc_version, rc_number, version_changed
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/version-utils.sh"
+
 STAGING_REF="refs/heads/$INPUT_STAGING_BRANCH"
 PRODUCTION_REF="refs/heads/$INPUT_PRODUCTION_BRANCH"
 
@@ -22,7 +25,7 @@ get_bump_priority() {
 
 # ===== PRODUCTION =====
 if [ "$GITHUB_REF" = "$PRODUCTION_REF" ]; then
-  CURRENT_VERSION=$(node -pe "require('./$INPUT_VERSION_FILE').version")
+  CURRENT_VERSION=$(read_version "$INPUT_VERSION_FILE")
 
   # Calculate expected version from commits
   LAST_PROD_TAG=$(git describe --tags --abbrev=0 --match "v[0-9]*.[0-9]*.[0-9]*" --exclude "*-rc.*" 2>/dev/null || echo "")
@@ -49,10 +52,7 @@ if [ "$GITHUB_REF" = "$PRODUCTION_REF" ]; then
     echo "Version outdated ($CURRENT_VERSION), bumping to $EXPECTED_VERSION"
 
     # Bump version file
-    VERSION_DIR=$(dirname "$INPUT_VERSION_FILE")
-    cd "$VERSION_DIR"
-    npm version "$EXPECTED_VERSION" --no-git-tag-version --allow-same-version
-    cd "$GITHUB_WORKSPACE"
+    write_version "$INPUT_VERSION_FILE" "$EXPECTED_VERSION"
 
     # Update Helm Chart appVersion if configured
     if [ -n "$INPUT_HELM_CHART" ] && [ -f "$INPUT_HELM_CHART" ]; then
@@ -77,7 +77,7 @@ if [ "$GITHUB_REF" = "$PRODUCTION_REF" ]; then
 fi
 
 # ===== STAGING =====
-CURRENT_VERSION=$(node -pe "require('./$INPUT_VERSION_FILE').version")
+CURRENT_VERSION=$(read_version "$INPUT_VERSION_FILE")
 NEEDS_REBUMP="false"
 NEEDS_BUMP="false"
 BASE_VERSION="$CURRENT_VERSION"
@@ -145,11 +145,8 @@ if [ "$IS_SUBSEQUENT_RC" = "false" ] || [ "$NEEDS_REBUMP" = "true" ]; then
     echo "Bumping version: $CURRENT_VERSION -> $EXPECTED_VERSION"
 
     # Bump version file
-    VERSION_DIR=$(dirname "$INPUT_VERSION_FILE")
-    cd "$VERSION_DIR"
-    npm version "$EXPECTED_VERSION" --no-git-tag-version --allow-same-version
-    NEW_BASE_VERSION=$(node -pe "require('./package.json').version")
-    cd "$GITHUB_WORKSPACE"
+    write_version "$INPUT_VERSION_FILE" "$EXPECTED_VERSION"
+    NEW_BASE_VERSION=$(read_version "$INPUT_VERSION_FILE")
 
     # Update Helm Chart appVersion if configured
     if [ -n "$INPUT_HELM_CHART" ] && [ -f "$INPUT_HELM_CHART" ]; then

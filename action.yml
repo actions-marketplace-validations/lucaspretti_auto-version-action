@@ -6,7 +6,7 @@ branding:
 
 inputs:
   version-file:
-    description: 'Path to package.json (or file with "version": "x.y.z")'
+    description: 'Path to version file (package.json, composer.json, pyproject.toml, VERSION, Chart.yaml). Format is auto-detected by filename.'
     required: true
   helm-chart:
     description: "Path to Chart.yaml to update appVersion (optional)"

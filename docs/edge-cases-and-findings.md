@@ -218,14 +218,21 @@ git describe --tags --abbrev=0 --match "v[0-9]*.[0-9]*.[0-9]*" --exclude "*-rc.*
 
 ---
 
-### Version file must use `"version": "x.y.z"` format
+### Version file format is auto-detected by filename
 
-**Constraint**: The action reads the version using `node -pe "require('./package.json').version"`. This requires:
-- A valid JSON file with a `version` field
-- Node.js installed in the runner
-- The file path relative to the workspace root
+**Constraint**: The action auto-detects the version file format based on the filename:
+- `package.json`, `composer.json`, `*.json` → JSON (`jq`)
+- `pyproject.toml`, `*.toml` → TOML (`grep` + `sed`)
+- `VERSION`, `VERSION.txt` → plain text (`cat`)
+- `Chart.yaml`, `*.yaml` → YAML (`grep` + `sed`)
 
-Other version file formats (e.g., Python `setup.py`, Gradle `build.gradle`) are not supported.
+Files with unrecognized names will cause the action to fail with an error.
+
+### `jq` reformats JSON files on write
+
+**Behavior**: When writing to JSON files, `jq` reformats the entire file with 2-space indentation. Version bump commits may show formatting changes alongside the version update.
+
+**Impact**: Cosmetic only. Matches the formatting that `npm version` previously produced. If the JSON file already uses 2-space indentation (standard for `package.json`), the diff will only show the version line change.
 
 ---
 
@@ -261,7 +268,7 @@ Other version file formats (e.g., Python `setup.py`, Gradle `build.gradle`) are 
 
 9. **Orphaned tag cleanup** — Provide a utility or workflow to clean up production tags that point to reverted code.
 
-10. **Non-Node.js version files** — Support reading version from `setup.py`, `build.gradle`, `Cargo.toml`, etc.
+10. ~~**Non-Node.js version files**~~ — Done. Supported via `version-utils.sh`: JSON, TOML, YAML, plain text.
 
 ---
 

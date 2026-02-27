@@ -12,8 +12,9 @@ GitHub Actions **composite action** for automated semantic versioning driven by 
 
 **`scripts/` pipeline** (executed in order):
 
+0. **`version-utils.sh`** — Shared library sourced by other scripts. Provides `detect_version_file_type`, `read_version`, and `write_version` functions. Auto-detects file format by filename (JSON via `jq`, TOML/YAML via `sed`/`grep`, plain text via `cat`/`echo`).
 1. **`analyze-commits.sh`** — Scans commits since last production tag using regex against conventional commit prefixes. Outputs `type` (major/minor/patch) and `is_subsequent_rc` (whether RC tags already exist for this version).
-2. **`bump-version.sh`** — On staging: bumps `package.json` via `npm version`, optionally updates Helm `Chart.yaml` `appVersion`, handles version escalation (higher-priority bump resets RC to 1), commits with `[skip ci]`, and pushes. On production: checks if version is already correct (from staging merge) or bumps if outdated (direct push).
+2. **`bump-version.sh`** — On staging: bumps version file via `version-utils.sh`, optionally updates Helm `Chart.yaml` `appVersion`, handles version escalation (higher-priority bump resets RC to 1), commits with `[skip ci]`, and pushes. On production: checks if version is already correct (from staging merge) or bumps if outdated (direct push).
 3. **`create-release.sh`** — Creates GitHub releases via REST API. On staging: pre-release with RC tag. On production: full release. Both include categorized changelogs (Breaking/Features/Fixes/Maintenance/Other).
 4. **`cleanup-rc.sh`** — Production only. Deletes RC pre-releases with version ≤ current via GitHub API. Preserves higher-version RCs from escalation scenarios.
 5. **Sync step** (inline in `action.yml`) — Production only. Merges production back to staging (skipped if staging branch doesn't exist).
@@ -29,7 +30,7 @@ GitHub Actions **composite action** for automated semantic versioning driven by 
 
 ## Runtime Requirements
 
-Scripts expect these tools available on the runner: `bash`, `node`/`npm` (for `npm version`), `jq`, `git` (with full history via `fetch-depth: 0`), `curl`.
+Scripts expect these tools available on the runner: `bash`, `jq`, `sed`, `git` (with full history via `fetch-depth: 0`), `curl`.
 
 ## Workflow Modes
 

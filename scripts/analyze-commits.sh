@@ -5,8 +5,11 @@ set -euo pipefail
 # Analyzes conventional commits since last production tag to determine bump type.
 # Outputs: type (major|minor|patch), is_subsequent_rc (true|false), current_version
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/version-utils.sh"
+
 # Read current version from version file
-CURRENT_VERSION=$(node -pe "require('./$INPUT_VERSION_FILE').version")
+CURRENT_VERSION=$(read_version "$INPUT_VERSION_FILE")
 echo "current_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
 echo "Current version: $CURRENT_VERSION"
 

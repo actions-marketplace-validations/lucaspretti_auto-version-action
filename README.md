@@ -15,7 +15,7 @@ A reusable GitHub Action for **automated semantic versioning** driven by [Conven
 
 ## Quick Start
 
-> **Prerequisites:** Your repository must have a `package.json` with a `"version"` field, and commits should follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, etc.).
+> **Prerequisites:** Your repository must have a version file (`package.json`, `composer.json`, `pyproject.toml`, `VERSION`, or `Chart.yaml`) with a version field, and commits should follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, etc.). The file format is auto-detected by filename.
 
 ### Minimal setup (single branch, production only)
 
@@ -39,10 +39,6 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0    # Required: full history for commit analysis
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: "22"
 
       - name: Auto Version
         uses: web/auto-version-action@v1
@@ -73,10 +69,6 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: "22"
 
       - name: Auto Version
         id: version
@@ -113,7 +105,7 @@ For GHES instances, add `github-api-url` to ensure API calls reach the correct e
 
 | Input | Required | Default | Description |
 |---|---|---|---|
-| `version-file` | **yes** | — | Path to `package.json` (currently only `package.json` is supported) |
+| `version-file` | **yes** | — | Path to version file (`package.json`, `composer.json`, `pyproject.toml`, `VERSION`, `Chart.yaml`). Auto-detected by filename. |
 | `helm-chart` | no | `""` | Path to `Chart.yaml` to update `appVersion` |
 | `staging-branch` | no | `staging` | Name of the staging/RC branch |
 | `production-branch` | no | `master` | Name of the production branch |
@@ -166,7 +158,7 @@ feat!: breaking    -> v2.0.0-rc.1  (highest priority, re-bump + reset RC)
 1. Analyze all commits since last production tag
 2. Determine bump type (major > minor > patch)
 3. If RC tags exist: compare priority, re-bump if higher
-4. Update `package.json` (and optional `Chart.yaml`)
+4. Update version file (and optional `Chart.yaml`)
 5. Commit with `[skip ci]`, create RC tag, create GitHub Pre-release
 
 ### Production Behavior
@@ -203,21 +195,22 @@ Both modes use the same action configuration. The difference is only which branc
 
 ## Supported Ecosystems
 
-The action uses `npm version` internally to bump the version file. Currently supported:
+The action auto-detects the version file format by filename and uses `jq`/`sed` for reading and writing. No Node.js required.
 
-| Ecosystem | Supported | Version file |
-|---|---|---|
-| Node.js / Next.js / React | Yes | `package.json` |
-| Helm Charts | Yes (appVersion only) | `Chart.yaml` via `helm-chart` input |
-| Python | Not yet | `pyproject.toml` |
-| PHP / Drupal | Not yet | `composer.json` |
-| Go | Not yet | — |
+| Ecosystem | Version file | Read | Write |
+|---|---|---|---|
+| Node.js / Next.js / React | `package.json` | `jq -r '.version'` | `jq '.version = "X"'` |
+| PHP / Drupal | `composer.json` | `jq -r '.version'` | `jq '.version = "X"'` |
+| Python | `pyproject.toml` | `grep` + `sed` | `sed -i` |
+| Plain / Shell | `VERSION` or `VERSION.txt` | `cat` | `echo > file` |
+| YAML / Helm | `Chart.yaml` / `*.yaml` | `grep` + `sed` | `sed -i` |
+| Helm Charts (appVersion) | `Chart.yaml` via `helm-chart` input | — | `sed -i` |
 
 ## Examples
 
 ### With Helm Chart
 
-Updates `appVersion` in your Helm `Chart.yaml` alongside `package.json`:
+Updates `appVersion` in your Helm `Chart.yaml` alongside the version file:
 
 ```yaml
       - name: Auto Version
@@ -240,6 +233,38 @@ Use `develop`/`main` instead of the default `staging`/`master`:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           staging-branch: develop
           production-branch: main
+```
+
+### PHP / Drupal (composer.json)
+
+```yaml
+      - name: Auto Version
+        uses: web/auto-version-action@v1
+        with:
+          version-file: composer.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+### Python (pyproject.toml)
+
+```yaml
+      - name: Auto Version
+        uses: web/auto-version-action@v1
+        with:
+          version-file: pyproject.toml
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+### Plain VERSION file
+
+For repos without a package manager (shell scripts, documentation, etc.):
+
+```yaml
+      - name: Auto Version
+        uses: web/auto-version-action@v1
+        with:
+          version-file: VERSION
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ### Custom Deployment Info in Release Notes
@@ -323,6 +348,7 @@ Floating tags (`v1`, `v1.2`) are updated automatically via the `update-floating-
 auto-version-action/
 ├── action.yml              # Composite action definition
 ├── scripts/
+│   ├── version-utils.sh    # Shared read/write version functions (auto-detects file format)
 │   ├── analyze-commits.sh  # Commit analysis + bump type detection
 │   ├── bump-version.sh     # Version bump + RC numbering logic
 │   ├── create-release.sh   # Release/pre-release creation with changelog
@@ -341,8 +367,8 @@ See [docs/edge-cases-and-findings.md](docs/edge-cases-and-findings.md) for:
 
 ## Requirements
 
-- **Node.js** — used to read/write `package.json` version
-- **jq** — used for JSON processing in release API calls
+- **jq** — used for JSON version files and release API calls
+- **sed** — used for TOML/YAML version files
 - **Git** — with full history (`fetch-depth: 0` on checkout)
 
 ## License
