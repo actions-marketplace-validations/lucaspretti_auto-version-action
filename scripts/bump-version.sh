@@ -2,8 +2,9 @@
 set -euo pipefail
 
 # bump-version.sh
-# Bumps version in version-file (and optional helm chart) for staging.
-# For production, reads existing version.
+# Bumps version in version-file (and optional helm chart).
+# For staging: bumps + creates RC number.
+# For production: bumps only if version is outdated (direct push without staging).
 # Outputs: version, rc_version, rc_number, version_changed
 
 STAGING_REF="refs/heads/$INPUT_STAGING_BRANCH"
@@ -19,14 +20,58 @@ get_bump_priority() {
   esac
 }
 
-# ===== PRODUCTION: just read version =====
+# ===== PRODUCTION =====
 if [ "$GITHUB_REF" = "$PRODUCTION_REF" ]; then
-  VERSION=$(node -pe "require('./$INPUT_VERSION_FILE').version")
+  CURRENT_VERSION=$(node -pe "require('./$INPUT_VERSION_FILE').version")
+
+  # Calculate expected version from commits
+  LAST_PROD_TAG=$(git describe --tags --abbrev=0 --exclude "*-rc.*" 2>/dev/null || echo "")
+  if [ -z "$LAST_PROD_TAG" ]; then
+    LAST_PROD_VERSION="0.0.0"
+  else
+    LAST_PROD_VERSION=$(echo "$LAST_PROD_TAG" | sed 's/^v//')
+  fi
+
+  IFS='.' read -r MAJOR MINOR PATCH <<< "$LAST_PROD_VERSION"
+  case "$BUMP_TYPE" in
+    major) EXPECTED_VERSION="$((MAJOR + 1)).0.0" ;;
+    minor) EXPECTED_VERSION="${MAJOR}.$((MINOR + 1)).0" ;;
+    patch) EXPECTED_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))" ;;
+    *)     EXPECTED_VERSION="$CURRENT_VERSION" ;;
+  esac
+
+  VERSION_CHANGED="false"
+
+  if [ "$CURRENT_VERSION" = "$EXPECTED_VERSION" ]; then
+    echo "Production version already correct (from staging): $CURRENT_VERSION"
+    VERSION="$CURRENT_VERSION"
+  else
+    echo "Version outdated ($CURRENT_VERSION), bumping to $EXPECTED_VERSION"
+
+    # Bump version file
+    VERSION_DIR=$(dirname "$INPUT_VERSION_FILE")
+    cd "$VERSION_DIR"
+    npm version "$EXPECTED_VERSION" --no-git-tag-version --allow-same-version
+    cd "$GITHUB_WORKSPACE"
+
+    # Update Helm Chart appVersion if configured
+    if [ -n "$INPUT_HELM_CHART" ] && [ -f "$INPUT_HELM_CHART" ]; then
+      sed -i "s/^appVersion:.*/appVersion: \"$EXPECTED_VERSION\"/" "$INPUT_HELM_CHART"
+    fi
+
+    # Commit version bump
+    git add -A
+    git commit -m "chore: bump version to $EXPECTED_VERSION [skip ci]"
+    git push origin "$INPUT_PRODUCTION_BRANCH"
+
+    VERSION="$EXPECTED_VERSION"
+    VERSION_CHANGED="true"
+  fi
+
   echo "version=$VERSION" >> "$GITHUB_OUTPUT"
   echo "rc_version=" >> "$GITHUB_OUTPUT"
   echo "rc_number=" >> "$GITHUB_OUTPUT"
-  echo "version_changed=false" >> "$GITHUB_OUTPUT"
-  echo "Production version from merged staging: $VERSION"
+  echo "version_changed=$VERSION_CHANGED" >> "$GITHUB_OUTPUT"
   exit 0
 fi
 
