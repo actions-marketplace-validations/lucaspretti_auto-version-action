@@ -15,15 +15,19 @@ A reusable GitHub Action for **automated semantic versioning** driven by [Conven
 
 ## Quick Start
 
+> **Prerequisites:** Your repository must have a `package.json` with a `"version"` field, and commits should follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, etc.).
+
+### Minimal setup (single branch, production only)
+
 ```yaml
-name: Automated Versioning & Release
+name: Auto Version
 
 on:
   push:
-    branches: [master, staging]
+    branches: [master]
 
 jobs:
-  version-and-release:
+  version:
     runs-on: ubuntu-latest
     if: >-
       ${{ !contains(github.event.head_commit.message, '[skip ci]') &&
@@ -32,11 +36,11 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
-          fetch-depth: 0
+          fetch-depth: 0    # Required: full history for commit analysis
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "20"
 
@@ -46,6 +50,64 @@ jobs:
           version-file: package.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
+
+### Full setup (staging + production with RC releases)
+
+```yaml
+name: Auto Version
+
+on:
+  push:
+    branches: [master, staging]
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    if: >-
+      ${{ !contains(github.event.head_commit.message, '[skip ci]') &&
+          !contains(github.event.head_commit.message, '[ci skip]') }}
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+
+      - name: Auto Version
+        id: version
+        uses: web/auto-version-action@v1
+        with:
+          version-file: package.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Use outputs in subsequent steps
+      - name: Print version info
+        run: |
+          echo "Version: ${{ steps.version.outputs.version }}"
+          echo "Bump type: ${{ steps.version.outputs.bump-type }}"
+          echo "RC version: ${{ steps.version.outputs.rc-version }}"
+          echo "Changed: ${{ steps.version.outputs.version-changed }}"
+```
+
+### GitHub Enterprise Server
+
+For GHES instances, add `github-api-url` to ensure API calls reach the correct endpoint:
+
+```yaml
+      - name: Auto Version
+        uses: web/auto-version-action@v1
+        with:
+          version-file: package.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-api-url: ${{ github.api_url }}
+```
+
+> **Note for GHES:** Replace `runs-on: ubuntu-latest` with your self-hosted runner label (e.g., `runs-on: web-default`). Use `${{ github.api_url }}` instead of hardcoding the API URL so it works automatically on any instance.
 
 ## Inputs
 
@@ -151,49 +213,96 @@ The action uses `npm version` internally to bump the version file. Currently sup
 | PHP / Drupal | Not yet | `composer.json` |
 | Go | Not yet | — |
 
-## Advanced Usage
+## Examples
 
 ### With Helm Chart
 
-```yaml
-- uses: web/auto-version-action@v1
-  with:
-    version-file: js-app/package.json
-    helm-chart: helm/my-app/Chart.yaml
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-```
-
-### GitHub Enterprise Server
+Updates `appVersion` in your Helm `Chart.yaml` alongside `package.json`:
 
 ```yaml
-- uses: web/auto-version-action@v1
-  with:
-    version-file: js-app/package.json
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-    github-api-url: https://git.epo.org/api/v3
-```
-
-### Custom Deployment Info in Release Notes
-
-```yaml
-- uses: web/auto-version-action@v1
-  with:
-    version-file: package.json
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-    deployment-info: |
-      - **Environment**: ${{ github.ref_name == 'master' && 'Production' || 'Staging' }}
-      - **Cluster**: `my-k8s-cluster`
+      - name: Auto Version
+        uses: web/auto-version-action@v1
+        with:
+          version-file: js-app/package.json
+          helm-chart: helm/my-app/Chart.yaml
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ### Custom Branch Names
 
+Use `develop`/`main` instead of the default `staging`/`master`:
+
 ```yaml
-- uses: web/auto-version-action@v1
-  with:
-    version-file: package.json
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-    staging-branch: develop
-    production-branch: main
+      - name: Auto Version
+        uses: web/auto-version-action@v1
+        with:
+          version-file: package.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          staging-branch: develop
+          production-branch: main
+```
+
+### Custom Deployment Info in Release Notes
+
+Add environment details to the release notes:
+
+```yaml
+      - name: Auto Version
+        uses: web/auto-version-action@v1
+        with:
+          version-file: package.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          deployment-info: |
+            - **Environment**: ${{ github.ref_name == 'master' && 'Production' || 'Staging' }}
+            - **Cluster**: `my-k8s-cluster`
+```
+
+### Using Outputs for Docker Build
+
+Use the version output to tag Docker images:
+
+```yaml
+      - name: Auto Version
+        id: version
+        uses: web/auto-version-action@v1
+        with:
+          version-file: package.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-api-url: ${{ github.api_url }}
+
+      - name: Build and push Docker image
+        if: steps.version.outputs.version-changed == 'true'
+        run: |
+          docker build -t my-registry/my-app:${{ steps.version.outputs.version }} .
+          docker push my-registry/my-app:${{ steps.version.outputs.version }}
+```
+
+### Conditional Deployment
+
+Only deploy when the version actually changed:
+
+```yaml
+      - name: Auto Version
+        id: version
+        uses: web/auto-version-action@v1
+        with:
+          version-file: package.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-api-url: ${{ github.api_url }}
+
+      - name: Deploy to staging
+        if: >-
+          steps.version.outputs.version-changed == 'true' &&
+          github.ref_name == 'staging'
+        run: |
+          echo "Deploying RC ${{ steps.version.outputs.rc-version }}..."
+          # your deploy script here
+
+      - name: Deploy to production
+        if: github.ref_name == 'master'
+        run: |
+          echo "Deploying v${{ steps.version.outputs.version }}..."
+          # your deploy script here
 ```
 
 ## Architecture
