@@ -305,6 +305,18 @@ Only deploy when the version actually changed:
           # your deploy script here
 ```
 
+## Pinning Versions
+
+This action uses **floating tags** so consumers always get the latest fixes:
+
+| Reference | Resolves to | Use case |
+|---|---|---|
+| `@v1` | Latest `v1.x.x` release | Recommended — always up to date |
+| `@v1.2` | Latest `v1.2.x` patch | Pin to a minor version |
+| `@v1.2.3` | Exact version | Full reproducibility |
+
+Floating tags (`v1`, `v1.2`) are updated automatically via the `update-floating-tags.yml` workflow every time a new release is published.
+
 ## Architecture
 
 ```
