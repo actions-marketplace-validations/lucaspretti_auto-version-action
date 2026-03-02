@@ -27,6 +27,10 @@ inputs:
     description: "GitHub API base URL (for GitHub Enterprise Server)"
     required: false
     default: "https://api.github.com"
+  update-floating-tags:
+    description: "Update vMAJOR and vMAJOR.MINOR floating tags on production release (useful for GitHub Actions consumed via @v1)"
+    required: false
+    default: "false"
   deployment-info:
     description: "Optional markdown block for deployment section in release notes"
     required: false
@@ -114,7 +118,7 @@ runs:
       run: bash "${{ github.action_path }}/scripts/cleanup-rc.sh"
 
     - name: Update floating tags
-      if: github.ref == format('refs/heads/{0}', inputs.production-branch)
+      if: github.ref == format('refs/heads/{0}', inputs.production-branch) && inputs.update-floating-tags == 'true'
       shell: bash
       env:
         VERSION: ${{ steps.bump.outputs.version }}
