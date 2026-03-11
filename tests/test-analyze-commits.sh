@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# test-analyze-commits.sh
+# Tests for the commit classification logic in scripts/analyze-commits.sh.
+# Extracts the grep-based detection and tests it in isolation.
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/test-helper.sh"
+
+# Replicate the classification logic from analyze-commits.sh
+classify_commits() {
+  local COMMITS="$1"
+  if echo "$COMMITS" | grep -qE '^[a-z]+(\(.*\))?!:' || echo "$COMMITS" | grep -q 'BREAKING CHANGE'; then
+    echo "major"
+  elif echo "$COMMITS" | grep -qE '^feat(\(.*\))?:'; then
+    echo "minor"
+  else
+    echo "patch"
+  fi
+}
+
+echo "=== analyze-commits.sh ==="
+
+# --- MAJOR: breaking change via ! ---
+
+test_start "major: feat!: breaking"
+assert_eq "major" "$(classify_commits "feat!: drop legacy api")"
+
+test_start "major: fix!: breaking"
+assert_eq "major" "$(classify_commits "fix!: remove deprecated endpoint")"
+
+test_start "major: chore!: breaking"
+assert_eq "major" "$(classify_commits "chore!: drop node 14 support")"
+
+test_start "major: refactor!: breaking"
+assert_eq "major" "$(classify_commits "refactor!: rewrite auth module")"
+
+test_start "major: feat(scope)!: breaking with scope"
+assert_eq "major" "$(classify_commits "feat(api)!: remove v1 endpoints")"
+
+test_start "major: fix(scope)!: breaking with scope"
+assert_eq "major" "$(classify_commits "fix(auth)!: change token format")"
+
+# --- MAJOR: breaking change via footer ---
+
+test_start "major: BREAKING CHANGE footer"
+COMMITS="$(printf 'refactor: change auth flow\n\nBREAKING CHANGE: tokens are now JWT')"
+assert_eq "major" "$(classify_commits "$COMMITS")"
+
+# --- MAJOR: mixed with lower types ---
+
+test_start "major: feat! mixed with fix"
+COMMITS="$(printf 'fix: patch something\nfeat!: drop api v1')"
+assert_eq "major" "$(classify_commits "$COMMITS")"
+
+# --- MINOR: feat ---
+
+test_start "minor: feat: new feature"
+assert_eq "minor" "$(classify_commits "feat: add user profiles")"
+
+test_start "minor: feat(scope): with scope"
+assert_eq "minor" "$(classify_commits "feat(api): add search endpoint")"
+
+test_start "minor: feat mixed with fix"
+COMMITS="$(printf 'fix: resolve crash\nfeat: add export feature')"
+assert_eq "minor" "$(classify_commits "$COMMITS")"
+
+test_start "minor: feat mixed with chore"
+COMMITS="$(printf 'chore: update deps\nfeat: add notifications')"
+assert_eq "minor" "$(classify_commits "$COMMITS")"
+
+# --- PATCH: fix and other types ---
+
+test_start "patch: fix: bug fix"
+assert_eq "patch" "$(classify_commits "fix: resolve null pointer")"
+
+test_start "patch: fix(scope): with scope"
+assert_eq "patch" "$(classify_commits "fix(ui): correct alignment")"
+
+test_start "patch: chore only"
+assert_eq "patch" "$(classify_commits "chore: update deps")"
+
+test_start "patch: docs only"
+assert_eq "patch" "$(classify_commits "docs: update readme")"
+
+test_start "patch: ci only"
+assert_eq "patch" "$(classify_commits "ci: update workflow")"
+
+test_start "patch: refactor only"
+assert_eq "patch" "$(classify_commits "refactor: simplify logic")"
+
+test_start "patch: test only"
+assert_eq "patch" "$(classify_commits "test: add unit tests")"
+
+test_start "patch: style only"
+assert_eq "patch" "$(classify_commits "style: fix formatting")"
+
+test_start "patch: build only"
+assert_eq "patch" "$(classify_commits "build: update dockerfile")"
+
+test_start "patch: mixed non-feat non-breaking"
+COMMITS="$(printf 'fix: resolve bug\nchore: update deps\ndocs: add guide')"
+assert_eq "patch" "$(classify_commits "$COMMITS")"
+
+# --- Summary ---
+test_summary "analyze-commits"
