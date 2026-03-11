@@ -55,6 +55,8 @@ Unit tests live in `tests/` and run via `bash tests/run-all.sh`. Tests use a min
 
 Run tests locally: `bash tests/run-all.sh`
 
+**MANDATORY: Always run `bash tests/run-all.sh` after modifying any script in `scripts/` or `tests/`. All tests must pass before committing. If a test fails, fix the issue before proceeding.**
+
 ## Conventions
 
 - All scripts use `set -euo pipefail`
