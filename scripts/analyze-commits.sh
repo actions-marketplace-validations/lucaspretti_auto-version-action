@@ -34,21 +34,26 @@ else
 fi
 
 # Get commits since last production release
+# Use %s (subject only) for type/! detection, %B (full body) for BREAKING CHANGE footer
 if [ -z "$LAST_PROD_TAG" ]; then
-  COMMITS=$(git log --pretty=%B --no-merges HEAD~10..HEAD)
+  SUBJECTS=$(git log --pretty=%s --no-merges HEAD~10..HEAD)
+  BODIES=$(git log --pretty=%B --no-merges HEAD~10..HEAD)
   RANGE_DESC="last 10 commits (no previous tag found)"
 else
-  COMMITS=$(git log --pretty=%B --no-merges "$LAST_PROD_TAG..HEAD")
+  SUBJECTS=$(git log --pretty=%s --no-merges "$LAST_PROD_TAG..HEAD")
+  BODIES=$(git log --pretty=%B --no-merges "$LAST_PROD_TAG..HEAD")
   RANGE_DESC="since $LAST_PROD_TAG"
 fi
 
 echo "Analyzing commits $RANGE_DESC"
 
 # Determine bump type from conventional commits
-if echo "$COMMITS" | grep -qE '(^|[[:space:]])[a-z]+(\(.*\))?!:' || echo "$COMMITS" | grep -q 'BREAKING CHANGE'; then
+# Type prefix and ! are checked on subject lines only to avoid false positives from body text
+# BREAKING CHANGE footer is checked on full body
+if echo "$SUBJECTS" | grep -qE '(^|[[:space:]])[a-z]+(\(.*\))?!:' || echo "$BODIES" | grep -q 'BREAKING CHANGE'; then
   echo "Found breaking change -- MAJOR version bump"
   echo "type=major" >> "$GITHUB_OUTPUT"
-elif echo "$COMMITS" | grep -qE '(^|[[:space:]])feat(\(.*\))?:'; then
+elif echo "$SUBJECTS" | grep -qE '(^|[[:space:]])feat(\(.*\))?:'; then
   echo "Found feature -- MINOR version bump"
   echo "type=minor" >> "$GITHUB_OUTPUT"
 else

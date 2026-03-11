@@ -9,11 +9,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/test-helper.sh"
 
 # Replicate the classification logic from analyze-commits.sh
+# Uses separate subjects/bodies like the real script:
+# - Type prefix and ! checked on subjects only (avoids false positives from body text)
+# - BREAKING CHANGE footer checked on full body
 classify_commits() {
-  local COMMITS="$1"
-  if echo "$COMMITS" | grep -qE '(^|[[:space:]])[a-z]+(\(.*\))?!:' || echo "$COMMITS" | grep -q 'BREAKING CHANGE'; then
+  local SUBJECTS="$1"
+  local BODIES="${2:-$1}"
+  if echo "$SUBJECTS" | grep -qE '(^|[[:space:]])[a-z]+(\(.*\))?!:' || echo "$BODIES" | grep -q 'BREAKING CHANGE'; then
     echo "major"
-  elif echo "$COMMITS" | grep -qE '(^|[[:space:]])feat(\(.*\))?:'; then
+  elif echo "$SUBJECTS" | grep -qE '(^|[[:space:]])feat(\(.*\))?:'; then
     echo "minor"
   else
     echo "patch"
@@ -128,6 +132,23 @@ assert_eq "patch" "$(classify_commits "web/legal-text-delta#733 fix: resolve iss
 
 test_start "patch: chore with issue ref prefix"
 assert_eq "patch" "$(classify_commits "#100 chore: update deps")"
+
+# --- False positive regression: body text must not trigger type detection ---
+
+test_start "patch: body mentioning fix!: must not trigger major"
+SUBJECT="fix: detect breaking change on any commit type"
+BODY="$(printf 'fix: detect breaking change on any commit type\n\nThe regex matched feat!: for breaking changes. Per the spec,\nany type with ! is breaking (e.g. fix!:, chore!:, refactor!:).')"
+assert_eq "patch" "$(classify_commits "$SUBJECT" "$BODY")"
+
+test_start "major: BREAKING CHANGE in body still detected"
+SUBJECT="refactor: change auth flow"
+BODY="$(printf 'refactor: change auth flow\n\nBREAKING CHANGE: tokens are now JWT')"
+assert_eq "major" "$(classify_commits "$SUBJECT" "$BODY")"
+
+test_start "minor: body mentioning feat: must not trigger minor"
+SUBJECT="docs: update changelog"
+BODY="$(printf 'docs: update changelog\n\nAdded entries for feat: new api and fix: bug.')"
+assert_eq "patch" "$(classify_commits "$SUBJECT" "$BODY")"
 
 # --- Summary ---
 test_summary "analyze-commits"
