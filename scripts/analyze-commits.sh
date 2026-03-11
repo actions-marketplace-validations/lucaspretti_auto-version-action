@@ -45,13 +45,13 @@ fi
 echo "Analyzing commits $RANGE_DESC"
 
 # Determine bump type from conventional commits
-if echo "$COMMITS" | grep -qE '^[a-z]+(\(.*\))?!:' || echo "$COMMITS" | grep -q 'BREAKING CHANGE'; then
+if echo "$COMMITS" | grep -qE '(^|[[:space:]])[a-z]+(\(.*\))?!:' || echo "$COMMITS" | grep -q 'BREAKING CHANGE'; then
   echo "Found breaking change -- MAJOR version bump"
   echo "type=major" >> "$GITHUB_OUTPUT"
-elif echo "$COMMITS" | grep -qE '^feat(\(.*\))?:'; then
-  echo "Found feature — MINOR version bump"
+elif echo "$COMMITS" | grep -qE '(^|[[:space:]])feat(\(.*\))?:'; then
+  echo "Found feature -- MINOR version bump"
   echo "type=minor" >> "$GITHUB_OUTPUT"
 else
-  echo "Only fixes/chores — PATCH version bump"
+  echo "Only fixes/chores -- PATCH version bump"
   echo "type=patch" >> "$GITHUB_OUTPUT"
 fi

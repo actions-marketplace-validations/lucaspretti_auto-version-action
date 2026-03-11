@@ -4,7 +4,7 @@ A reusable GitHub Action for **automated semantic versioning** driven by [Conven
 
 ## Features
 
-- **Conventional commit analysis** — `feat:`, `fix:`, `chore:`, `feat!:`, `BREAKING CHANGE`
+- **Conventional commit analysis** — `feat:`, `fix:`, `chore:`, `<type>!:`, `BREAKING CHANGE` ([spec](https://www.conventionalcommits.org/en/v1.0.0/))
 - **Semver bump calculation** from last production tag
 - **RC tag creation** with sequential numbering (`v1.2.0-rc.1`, `v1.2.0-rc.2`, ...)
 - **Version escalation** — higher-priority bumps reset RC numbering
@@ -135,11 +135,17 @@ Merge to master  -> Read version    -> Create tag    -> Release       -> Cleanup
 
 ### Commit Convention
 
+Follows the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification:
+
 | Commit prefix | Bump type | Example |
 |---|---|---|
-| `feat!:` or `BREAKING CHANGE` | **major** | `feat!: redesign API` |
+| `<type>!:` or `BREAKING CHANGE` | **major** | `feat!: redesign API`, `fix!: change auth flow` |
 | `feat:` | **minor** | `feat: add search filter` |
 | `fix:`, `chore:`, `docs:`, etc. | **patch** | `fix: resolve null pointer` |
+
+The `!` modifier works on **any** commit type (`feat!:`, `fix!:`, `chore!:`, `refactor!:`, etc.) to signal a breaking change, per the spec.
+
+Commit types are also detected when preceded by an issue reference (e.g., `#123 feat: add feature` or `web/repo#42 fix: resolve bug`).
 
 ### Intelligent Version Escalation
 
@@ -356,6 +362,12 @@ auto-version-action/
 │   ├── cleanup-rc.sh       # RC pre-release cleanup on production
 │   ├── update-floating-tags.sh # Move vMAJOR/vMAJOR.MINOR tags (opt-in)
 │   └── summary.sh          # GitHub Actions step summary
+├── tests/
+│   ├── run-all.sh          # Test runner
+│   ├── test-helper.sh      # Minimal bash assertion framework
+│   ├── test-analyze-commits.sh
+│   ├── test-bump-version.sh
+│   └── test-version-utils.sh
 └── README.md
 ```
 

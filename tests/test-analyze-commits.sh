@@ -11,9 +11,9 @@ source "$SCRIPT_DIR/test-helper.sh"
 # Replicate the classification logic from analyze-commits.sh
 classify_commits() {
   local COMMITS="$1"
-  if echo "$COMMITS" | grep -qE '^[a-z]+(\(.*\))?!:' || echo "$COMMITS" | grep -q 'BREAKING CHANGE'; then
+  if echo "$COMMITS" | grep -qE '(^|[[:space:]])[a-z]+(\(.*\))?!:' || echo "$COMMITS" | grep -q 'BREAKING CHANGE'; then
     echo "major"
-  elif echo "$COMMITS" | grep -qE '^feat(\(.*\))?:'; then
+  elif echo "$COMMITS" | grep -qE '(^|[[:space:]])feat(\(.*\))?:'; then
     echo "minor"
   else
     echo "patch"
@@ -102,6 +102,32 @@ assert_eq "patch" "$(classify_commits "build: update dockerfile")"
 test_start "patch: mixed non-feat non-breaking"
 COMMITS="$(printf 'fix: resolve bug\nchore: update deps\ndocs: add guide')"
 assert_eq "patch" "$(classify_commits "$COMMITS")"
+
+# --- Issue reference prefix (type not at start of line) ---
+
+test_start "minor: feat with issue ref prefix"
+assert_eq "minor" "$(classify_commits "web/legal-text-delta#733 feat: add new feature")"
+
+test_start "minor: feat(scope) with issue ref prefix"
+assert_eq "minor" "$(classify_commits "web/repo#42 feat(api): add endpoint")"
+
+test_start "minor: feat with short issue ref"
+assert_eq "minor" "$(classify_commits "#123 feat: add search")"
+
+test_start "major: feat! with issue ref prefix"
+assert_eq "major" "$(classify_commits "web/repo#99 feat!: drop legacy api")"
+
+test_start "major: fix! with issue ref prefix"
+assert_eq "major" "$(classify_commits "#55 fix!: change token format")"
+
+test_start "major: refactor! with issue ref prefix"
+assert_eq "major" "$(classify_commits "org/repo#10 refactor!: rewrite module")"
+
+test_start "patch: fix with issue ref prefix"
+assert_eq "patch" "$(classify_commits "web/legal-text-delta#733 fix: resolve issue")"
+
+test_start "patch: chore with issue ref prefix"
+assert_eq "patch" "$(classify_commits "#100 chore: update deps")"
 
 # --- Summary ---
 test_summary "analyze-commits"
