@@ -176,6 +176,20 @@ git describe --tags --abbrev=0 --match "v[0-9]*.[0-9]*.[0-9]*" --exclude "*-rc.*
 
 ---
 
+### 13. Phantom version bumps from repeated staging-to-master merges
+
+**Symptom**: Production creates a release (e.g., `v0.25.2`) that has no corresponding RC on staging. The RC cycle is still at `v0.25.1-rc.X`.
+
+**Cause**: When staging is merged to master multiple times within the same RC cycle, the second merge carries only automated commits (`chore: bump version [skip ci]`, `chore: sync master back to staging [skip ci]`). The commit analysis saw these as new commits and classified them as `patch`, triggering a spurious version bump.
+
+**Fix**: `analyze-commits.sh` now filters out `[skip ci]` commits before type classification. If no meaningful commits remain after filtering, the script outputs `type=none` and all downstream steps (bump, release, cleanup, floating tags) skip gracefully. Both `bump-version.sh` and `create-release.sh` handle `type=none` with early exits.
+
+**Initial approach (reverted)**: The first fix attempted to check for RC tags in two-branch mode before allowing a production bump. This was abandoned because it would also block legitimate hotfixes pushed directly to master (which have no RC tags by design). Filtering `[skip ci]` at the source is the correct root-cause fix.
+
+**Applies to**: Two-branch workflows (staging + production) with repeated merges.
+
+---
+
 ## Known Behaviors (Not Bugs)
 
 ### Reverted commits still appear in changelogs

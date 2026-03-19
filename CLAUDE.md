@@ -13,8 +13,8 @@ GitHub Actions **composite action** for automated semantic versioning driven by 
 **`scripts/` pipeline** (executed in order):
 
 0. **`version-utils.sh`** — Shared library sourced by other scripts. Provides `detect_version_file_type`, `read_version`, and `write_version` functions. Auto-detects file format by filename (JSON via `jq`, TOML/YAML via `sed`/`grep`, plain text via `cat`/`echo`).
-1. **`analyze-commits.sh`** — Scans commits since last production tag using regex against conventional commit prefixes. Detects `<type>!:` on any commit type for breaking changes (not just `feat!:`). Tolerates issue reference prefixes (e.g., `#123 feat:`). Outputs `type` (major/minor/patch) and `is_subsequent_rc` (whether RC tags already exist for this version).
-2. **`bump-version.sh`** — On staging: bumps version file via `version-utils.sh`, optionally updates Helm `Chart.yaml` `appVersion`, handles version escalation (higher-priority bump resets RC to 1), commits with `[skip ci]`, and pushes. On production: uses semver comparison (`version_gte`) to check if version is already correct or higher (from staging merge); only bumps if truly outdated (direct push).
+1. **`analyze-commits.sh`** — Scans commits since last production tag using regex against conventional commit prefixes. Filters out `[skip ci]` commits before classification to avoid phantom bumps from automated commits. Detects `<type>!:` on any commit type for breaking changes (not just `feat!:`). Tolerates issue reference prefixes (e.g., `#123 feat:`). Outputs `type` (major/minor/patch/none) and `is_subsequent_rc` (whether RC tags already exist for this version). When all commits are `[skip ci]`, outputs `type=none` and all downstream steps skip gracefully.
+2. **`bump-version.sh`** — On staging: bumps version file via `version-utils.sh`, optionally updates Helm `Chart.yaml` `appVersion`, handles version escalation (higher-priority bump resets RC to 1), commits with `[skip ci]`, and pushes. On production: uses semver comparison (`version_gte`) to check if version is already correct or higher (from staging merge); only bumps if truly outdated (direct push). When `type=none`, skips entirely on both branches.
 3. **`create-release.sh`** — Creates GitHub releases via REST API. On staging: pre-release with RC tag. On production: full release. Both include categorized changelogs (Breaking/Features/Fixes/Maintenance/Other).
 4. **`cleanup-rc.sh`** — Production only. Deletes RC pre-releases with version ≤ current via GitHub API. Preserves higher-version RCs from escalation scenarios.
 5. **`update-floating-tags.sh`** — Production only, opt-in (`update-floating-tags: "true"`). Moves `vMAJOR` and `vMAJOR.MINOR` tags to the latest release. Useful for GitHub Actions consumed via `@v1`.
@@ -62,6 +62,7 @@ Run tests locally: `bash tests/run-all.sh`
 - All scripts use `set -euo pipefail`
 - Commits created by the action use `[skip ci]` to prevent recursive triggers
 - Changelogs exclude `[skip ci]` commits (automated bumps/syncs)
+- Commit analysis filters out `[skip ci]` commits before type classification to prevent phantom bumps (e.g., repeated staging-to-master merges that only carry automated sync/bump commits)
 - Git identity is set to `github-actions[bot]`
 - RC tags follow `v{major}.{minor}.{patch}-rc.{n}` format; production tags follow `v{major}.{minor}.{patch}`
 - Use `printf -- '...'` when format strings start with `-` to prevent bash interpreting them as options

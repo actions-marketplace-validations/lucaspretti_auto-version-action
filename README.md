@@ -121,7 +121,7 @@ For GHES instances, add `github-api-url` to ensure API calls reach the correct e
 | `version` | Base version (e.g., `2.1.1`) |
 | `rc-version` | Full RC version if staging (e.g., `2.1.1-rc.3`) |
 | `rc-number` | RC number (e.g., `3`) |
-| `bump-type` | `major`, `minor`, or `patch` |
+| `bump-type` | `major`, `minor`, `patch`, or `none` |
 | `version-changed` | `true` if version was bumped |
 
 ## How It Works
@@ -135,7 +135,7 @@ Merge to master  -> Read version    -> Create tag    -> Release       -> Cleanup
 
 ### Commit Convention
 
-Follows the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification:
+Follows the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification. Automated commits containing `[skip ci]` are filtered out before analysis to prevent phantom version bumps.
 
 | Commit prefix | Bump type | Example |
 |---|---|---|
