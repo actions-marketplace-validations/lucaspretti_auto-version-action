@@ -12,10 +12,19 @@ source "$SCRIPT_DIR/test-helper.sh"
 # Uses separate subjects/bodies like the real script:
 # - Type prefix and ! checked on subjects only (avoids false positives from body text)
 # - BREAKING CHANGE footer checked on full body
+# - [skip ci] commits are filtered out before classification
 classify_commits() {
-  local SUBJECTS="$1"
-  local BODIES="${2:-$1}"
-  if echo "$SUBJECTS" | grep -qE '(^|[[:space:]])[a-z]+(\(.*\))?!:' || echo "$BODIES" | grep -qE '^BREAKING CHANGE:'; then
+  local ALL_SUBJECTS="$1"
+  local ALL_BODIES="${2:-$1}"
+  local SUBJECTS BODIES
+
+  # Filter out [skip ci] / [ci skip] commits
+  SUBJECTS=$(echo "$ALL_SUBJECTS" | grep -v '\[skip ci\]\|\[ci skip\]' || true)
+  BODIES=$(echo "$ALL_BODIES" | grep -v '\[skip ci\]\|\[ci skip\]' || true)
+
+  if [ -z "$SUBJECTS" ]; then
+    echo "none"
+  elif echo "$SUBJECTS" | grep -qE '(^|[[:space:]])[a-z]+(\(.*\))?!:' || echo "$BODIES" | grep -qE '^BREAKING CHANGE:'; then
     echo "major"
   elif echo "$SUBJECTS" | grep -qE '(^|[[:space:]])feat(\(.*\))?:'; then
     echo "minor"
@@ -159,6 +168,33 @@ test_start "major: BREAKING CHANGE as proper footer still works"
 SUBJECT="refactor: rewrite module"
 BODY="$(printf 'refactor: rewrite module\n\nBREAKING CHANGE: old API removed')"
 assert_eq "major" "$(classify_commits "$SUBJECT" "$BODY")"
+
+# --- [skip ci] filtering ---
+
+test_start "none: all commits are [skip ci]"
+COMMITS="$(printf 'chore: bump version to 1.5.1 [skip ci]\nchore: sync master back to staging [skip ci]')"
+assert_eq "none" "$(classify_commits "$COMMITS")"
+
+test_start "none: single [skip ci] commit"
+assert_eq "none" "$(classify_commits "chore: bump version [skip ci]")"
+
+test_start "none: [ci skip] variant"
+assert_eq "none" "$(classify_commits "chore: sync [ci skip]")"
+
+test_start "patch: mix of [skip ci] and real fix"
+COMMITS="$(printf 'chore: bump version [skip ci]\nfix: resolve crash')"
+assert_eq "patch" "$(classify_commits "$COMMITS")"
+
+test_start "minor: mix of [skip ci] and real feat"
+COMMITS="$(printf 'chore: sync [skip ci]\nfeat: add feature')"
+assert_eq "minor" "$(classify_commits "$COMMITS")"
+
+test_start "major: mix of [skip ci] and breaking change"
+COMMITS="$(printf 'chore: bump [skip ci]\nfeat!: drop api')"
+assert_eq "major" "$(classify_commits "$COMMITS")"
+
+test_start "patch: real commit not affected by skip ci filter"
+assert_eq "patch" "$(classify_commits "fix: resolve null pointer")"
 
 # --- Summary ---
 test_summary "analyze-commits"

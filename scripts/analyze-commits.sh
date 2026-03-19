@@ -36,27 +36,36 @@ fi
 # Get commits since last production release
 # Use %s (subject only) for type/! detection, %B (full body) for BREAKING CHANGE footer
 if [ -z "$LAST_PROD_TAG" ]; then
-  SUBJECTS=$(git log --pretty=%s --no-merges HEAD~10..HEAD)
-  BODIES=$(git log --pretty=%B --no-merges HEAD~10..HEAD)
+  ALL_SUBJECTS=$(git log --pretty=%s --no-merges HEAD~10..HEAD)
+  ALL_BODIES=$(git log --pretty=%B --no-merges HEAD~10..HEAD)
   RANGE_DESC="last 10 commits (no previous tag found)"
 else
-  SUBJECTS=$(git log --pretty=%s --no-merges "$LAST_PROD_TAG..HEAD")
-  BODIES=$(git log --pretty=%B --no-merges "$LAST_PROD_TAG..HEAD")
+  ALL_SUBJECTS=$(git log --pretty=%s --no-merges "$LAST_PROD_TAG..HEAD")
+  ALL_BODIES=$(git log --pretty=%B --no-merges "$LAST_PROD_TAG..HEAD")
   RANGE_DESC="since $LAST_PROD_TAG"
 fi
 
 echo "Analyzing commits $RANGE_DESC"
 
-# Determine bump type from conventional commits
-# Type prefix and ! are checked on subject lines only to avoid false positives from body text
-# BREAKING CHANGE footer must start at beginning of line followed by colon (per conventional commits spec)
-if echo "$SUBJECTS" | grep -qE '(^|[[:space:]])[a-z]+(\(.*\))?!:' || echo "$BODIES" | grep -qE '^BREAKING CHANGE:'; then
-  echo "Found breaking change -- MAJOR version bump"
-  echo "type=major" >> "$GITHUB_OUTPUT"
-elif echo "$SUBJECTS" | grep -qE '(^|[[:space:]])feat(\(.*\))?:'; then
-  echo "Found feature -- MINOR version bump"
-  echo "type=minor" >> "$GITHUB_OUTPUT"
+# Filter out [skip ci] / [ci skip] commits (automated bumps, syncs)
+SUBJECTS=$(echo "$ALL_SUBJECTS" | grep -v '\[skip ci\]\|\[ci skip\]' || true)
+BODIES=$(echo "$ALL_BODIES" | grep -v '\[skip ci\]\|\[ci skip\]' || true)
+
+if [ -z "$SUBJECTS" ]; then
+  echo "No meaningful commits found (all are [skip ci]) -- skipping"
+  echo "type=none" >> "$GITHUB_OUTPUT"
 else
-  echo "Only fixes/chores -- PATCH version bump"
-  echo "type=patch" >> "$GITHUB_OUTPUT"
+  # Determine bump type from conventional commits
+  # Type prefix and ! are checked on subject lines only to avoid false positives from body text
+  # BREAKING CHANGE footer must start at beginning of line followed by colon (per conventional commits spec)
+  if echo "$SUBJECTS" | grep -qE '(^|[[:space:]])[a-z]+(\(.*\))?!:' || echo "$BODIES" | grep -qE '^BREAKING CHANGE:'; then
+    echo "Found breaking change -- MAJOR version bump"
+    echo "type=major" >> "$GITHUB_OUTPUT"
+  elif echo "$SUBJECTS" | grep -qE '(^|[[:space:]])feat(\(.*\))?:'; then
+    echo "Found feature -- MINOR version bump"
+    echo "type=minor" >> "$GITHUB_OUTPUT"
+  else
+    echo "Only fixes/chores -- PATCH version bump"
+    echo "type=patch" >> "$GITHUB_OUTPUT"
+  fi
 fi

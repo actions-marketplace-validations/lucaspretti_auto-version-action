@@ -9,6 +9,12 @@ PRODUCTION_REF="refs/heads/$INPUT_PRODUCTION_BRANCH"
 REPO_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
 API_URL="$INPUT_GITHUB_API_URL/repos/$GITHUB_REPOSITORY"
 
+# Skip release when no meaningful commits were found
+if [ "$BUMP_TYPE" = "none" ]; then
+  echo "No meaningful commits, skipping release creation"
+  exit 0
+fi
+
 # --- Shared: categorize commits ---
 categorize_commits() {
   local range="$1"
