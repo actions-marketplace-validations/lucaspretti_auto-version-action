@@ -100,5 +100,35 @@ else
   assert_unexpected "0.0.0 should be >= 0.0.0"
 fi
 
+# --- production_bump_allowed ---
+
+test_start "production_bump_allowed: single-branch mode (no staging), always allowed"
+if production_bump_allowed "false" "0"; then
+  assert_true "single-branch mode allows bump even with 0 RCs"
+else
+  assert_unexpected "single-branch mode should always allow bump"
+fi
+
+test_start "production_bump_allowed: two-branch mode, RC tags exist"
+if production_bump_allowed "true" "2"; then
+  assert_true "two-branch mode allows bump when RCs exist"
+else
+  assert_unexpected "two-branch mode with RCs should allow bump"
+fi
+
+test_start "production_bump_allowed: two-branch mode, no RC tags"
+if production_bump_allowed "true" "0"; then
+  assert_unexpected "two-branch mode without RCs should NOT allow bump"
+else
+  assert_false "two-branch mode blocks bump when no RCs exist"
+fi
+
+test_start "production_bump_allowed: two-branch mode, single RC"
+if production_bump_allowed "true" "1"; then
+  assert_true "two-branch mode allows bump with 1 RC"
+else
+  assert_unexpected "two-branch mode with 1 RC should allow bump"
+fi
+
 # --- Summary ---
 test_summary "bump-version helpers"

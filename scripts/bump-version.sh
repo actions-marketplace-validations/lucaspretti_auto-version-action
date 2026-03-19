@@ -23,6 +23,25 @@ get_bump_priority() {
   esac
 }
 
+# Returns 0 (true) if production bump should proceed.
+# In two-branch mode (staging exists), requires RC tags for the expected version.
+production_bump_allowed() {
+  local staging_exists="$1"   # "true" or "false"
+  local rc_tag_count="$2"     # number of RC tags for expected version
+
+  # Single-branch mode: always allow
+  if [ "$staging_exists" != "true" ]; then
+    return 0
+  fi
+
+  # Two-branch mode: require RC tags
+  if [ "$rc_tag_count" -gt 0 ]; then
+    return 0
+  fi
+
+  return 1
+}
+
 # Returns 0 (true) if version A >= version B (semver comparison)
 version_gte() {
   local a_major a_minor a_patch b_major b_minor b_patch
@@ -55,6 +74,23 @@ if [ "$GITHUB_REF" = "$PRODUCTION_REF" ]; then
     patch) EXPECTED_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))" ;;
     *)     EXPECTED_VERSION="$CURRENT_VERSION" ;;
   esac
+
+  # Two-branch mode: verify RC tags exist for expected version
+  STAGING_EXISTS="false"
+  if git ls-remote --exit-code origin "$INPUT_STAGING_BRANCH" >/dev/null 2>&1; then
+    STAGING_EXISTS="true"
+  fi
+
+  RC_TAG_COUNT=$(git tag -l "v${EXPECTED_VERSION}-rc.*" 2>/dev/null | wc -l | tr -d ' ')
+
+  if ! production_bump_allowed "$STAGING_EXISTS" "$RC_TAG_COUNT"; then
+    echo "Skipping: v$EXPECTED_VERSION has no RC tags on staging (release requires RC cycle first)"
+    echo "version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+    echo "rc_version=" >> "$GITHUB_OUTPUT"
+    echo "rc_number=" >> "$GITHUB_OUTPUT"
+    echo "version_changed=false" >> "$GITHUB_OUTPUT"
+    exit 0
+  fi
 
   VERSION_CHANGED="false"
 
