@@ -70,6 +70,23 @@ if [ "$GITHUB_REF" = "$PRODUCTION_REF" ]; then
 
   VERSION_CHANGED="false"
 
+  # Guard: in two-branch mode (staging exists), only bump if RC tags exist for expected version.
+  # This prevents spurious bumps when staging merges bring commits but the RC cycle
+  # has not advanced to the expected version yet.
+  STAGING_EXISTS=$(git ls-remote --exit-code origin "$INPUT_STAGING_BRANCH" >/dev/null 2>&1 && echo "true" || echo "false")
+  if [ "$STAGING_EXISTS" = "true" ]; then
+    RC_TAG_COUNT=$(git tag -l "v${EXPECTED_VERSION}-rc.*" 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$RC_TAG_COUNT" -eq 0 ]; then
+      echo "Skipping bump to $EXPECTED_VERSION: no RC tags found (staging branch exists but RC cycle has not started for this version)"
+      echo "version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+      echo "rc_version=" >> "$GITHUB_OUTPUT"
+      echo "rc_number=" >> "$GITHUB_OUTPUT"
+      echo "version_changed=false" >> "$GITHUB_OUTPUT"
+      exit 0
+    fi
+    echo "Found $RC_TAG_COUNT RC tag(s) for v$EXPECTED_VERSION, proceeding with release"
+  fi
+
   if version_gte "$CURRENT_VERSION" "$EXPECTED_VERSION"; then
     echo "Production version already correct: $CURRENT_VERSION (expected >= $EXPECTED_VERSION)"
     VERSION="$CURRENT_VERSION"
