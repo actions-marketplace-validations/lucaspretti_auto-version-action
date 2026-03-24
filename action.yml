@@ -1,4 +1,4 @@
-name: "Auto Version"
+name: "Conventional Commits Auto Version"
 description: "Automated semantic versioning with RC tags on staging and production releases, driven by conventional commits."
 branding:
   icon: "tag"
