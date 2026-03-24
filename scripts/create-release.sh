@@ -74,8 +74,9 @@ if [ "$GITHUB_REF" = "$STAGING_REF" ]; then
   fi
 
   if [ -z "$LAST_TAG" ]; then
-    RANGE="HEAD~10..HEAD"
-    RANGE_DESC="last 10 commits"
+    ROOT_COMMIT=$(git rev-list --max-parents=0 HEAD | head -1)
+    RANGE="$ROOT_COMMIT..HEAD"
+    RANGE_DESC="all commits"
     FULL_CHANGELOG_URL="$REPO_URL/commits/$INPUT_STAGING_BRANCH"
     FULL_CHANGELOG_LABEL="**Commit History**"
   else
@@ -165,8 +166,9 @@ if [ "$GITHUB_REF" = "$PRODUCTION_REF" ]; then
   LAST_PROD_TAG=$(git describe --tags --abbrev=0 --match "v[0-9]*.[0-9]*.[0-9]*" --exclude "*-rc.*" --exclude "v${VERSION}" HEAD^ 2>/dev/null || echo "")
 
   if [ -z "$LAST_PROD_TAG" ]; then
-    RANGE="HEAD~10..HEAD"
-    RANGE_DESC="last 10 commits"
+    ROOT_COMMIT=$(git rev-list --max-parents=0 HEAD | head -1)
+    RANGE="$ROOT_COMMIT..HEAD"
+    RANGE_DESC="all commits"
   else
     RANGE="$LAST_PROD_TAG..HEAD"
     RANGE_DESC="$LAST_PROD_TAG -> v$VERSION"

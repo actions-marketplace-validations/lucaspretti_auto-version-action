@@ -36,9 +36,10 @@ fi
 # Get commits since last production release
 # Use %s (subject only) for type/! detection, %B (full body) for BREAKING CHANGE footer
 if [ -z "$LAST_PROD_TAG" ]; then
-  ALL_SUBJECTS=$(git log --pretty=%s --no-merges HEAD~10..HEAD)
-  ALL_BODIES=$(git log --pretty=%B --no-merges HEAD~10..HEAD)
-  RANGE_DESC="last 10 commits (no previous tag found)"
+  ROOT_COMMIT=$(git rev-list --max-parents=0 HEAD | head -1)
+  ALL_SUBJECTS=$(git log --pretty=%s --no-merges "$ROOT_COMMIT..HEAD")
+  ALL_BODIES=$(git log --pretty=%B --no-merges "$ROOT_COMMIT..HEAD")
+  RANGE_DESC="all commits (no previous tag found)"
 else
   ALL_SUBJECTS=$(git log --pretty=%s --no-merges "$LAST_PROD_TAG..HEAD")
   ALL_BODIES=$(git log --pretty=%B --no-merges "$LAST_PROD_TAG..HEAD")

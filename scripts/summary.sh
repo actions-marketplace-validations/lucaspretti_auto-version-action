@@ -11,8 +11,9 @@ REPO_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
 LAST_TAG=$(git describe --tags --abbrev=0 --match "v[0-9]*.[0-9]*.[0-9]*" HEAD^ 2>/dev/null || echo "")
 
 if [ -z "$LAST_TAG" ]; then
-  COMMITS=$(git log --pretty=format:"- %s (%h)" HEAD~10..HEAD)
-  RANGE="last 10 commits"
+  ROOT_COMMIT=$(git rev-list --max-parents=0 HEAD | head -1)
+  COMMITS=$(git log --pretty=format:"- %s (%h)" "$ROOT_COMMIT..HEAD")
+  RANGE="all commits"
 else
   COMMITS=$(git log --pretty=format:"- %s (%h)" "$LAST_TAG..HEAD")
   RANGE="since $LAST_TAG"
